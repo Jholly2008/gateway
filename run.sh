@@ -36,7 +36,7 @@ echo "Service A URI: $SERVICE_A_URI"
 
 docker run -d \
    -p $PORT:$PORT \
-   -e JVM_MEM=512M \
+   -e JVM_MEM=1G \
    -e SERVICE_A_URI=$SERVICE_A_URI \
    --name $CONTAINER_NAME \
    $IMAGE_NAME:$TAG_NAME
