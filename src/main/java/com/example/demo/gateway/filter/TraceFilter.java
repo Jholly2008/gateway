@@ -1,6 +1,7 @@
 package com.example.demo.gateway.filter;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -20,13 +21,22 @@ public class TraceFilter implements GlobalFilter, Ordered {
     private static final String X_B3_PARENT_SPAN_ID = "X-B3-ParentSpanId";
     private static final String X_B3_SAMPLED = "X-B3-Sampled";
 
+    @Value("${app.kubernetes.enabled:false}")
+    private boolean isKubernetesEnabled;
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        if (!isKubernetesEnabled) {
+            log.debug("Not in Kubernetes environment, manually setting trace headers");
+            return handleNonK8sRequest(exchange, chain);
+        } else {
+            log.debug("Running in Kubernetes environment, trace headers handled by Istio");
+            return chain.filter(exchange);
+        }
+    }
+
+    private Mono<Void> handleNonK8sRequest(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-
-        // 取token
-
-
         ServerHttpRequest.Builder mutatedRequest = request.mutate();
 
         // 如果不存在，生成新的追踪信息
@@ -38,7 +48,6 @@ public class TraceFilter implements GlobalFilter, Ordered {
                 .header(X_B3_SPAN_ID, spanId)
                 .header(X_B3_PARENT_SPAN_ID, "0")  // 网关作为起始节点，parentSpanId为0
                 .header(X_B3_SAMPLED, "1");        // 启用采样
-
 
         // 使用修改后的请求构建新的 ServerWebExchange
         ServerWebExchange mutatedExchange = exchange.mutate()
@@ -78,7 +87,6 @@ public class TraceFilter implements GlobalFilter, Ordered {
         String spanId = request.getHeaders().getFirst(X_B3_SPAN_ID);
         String path = request.getPath().value();
 
-        // 使用你的日志框架记录
         log.info("Gateway Trace - Path: {}, TraceId: {}, SpanId: {}", path, traceId, spanId);
     }
 }
