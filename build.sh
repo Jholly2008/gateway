@@ -56,7 +56,6 @@ else
   echo "未找到相关的容器。"
 fi
 
-
 # 找到Docker镜像的imageId
 IMAGE_ID=$(docker images -q "$DOCKER_IMAGE_NAME")
 
@@ -82,3 +81,20 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Docker镜像构建成功。"
+
+# 询问是否需要推送到Docker仓库
+read -p "是否需要推送镜像到Docker仓库？(y/n): " PUSH_CHOICE
+
+if [[ $PUSH_CHOICE =~ ^[Yy]$ ]]; then
+    echo "正在推送镜像到Docker仓库..."
+    docker push "$DOCKER_IMAGE_NAME"
+    
+    if [ $? -ne 0 ]; then
+        echo "推送镜像失败。请检查是否已登录Docker仓库或网络连接是否正常。"
+        exit 1
+    else
+        echo "镜像推送成功！"
+    fi
+else
+    echo "跳过推送镜像到Docker仓库。"
+fi
