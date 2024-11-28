@@ -1,5 +1,8 @@
 package com.example.demo.gateway.filter;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -89,4 +92,5 @@ public class TraceFilter implements GlobalFilter, Ordered {
 
         log.info("Gateway Trace - Path: {}, TraceId: {}, SpanId: {}", path, traceId, spanId);
     }
+
 }
