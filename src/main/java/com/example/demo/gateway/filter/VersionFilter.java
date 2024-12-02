@@ -1,6 +1,7 @@
 package com.example.demo.gateway.filter;
 
 import com.example.demo.gateway.utils.JwtUtils;
+import io.opentelemetry.api.baggage.Baggage;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -35,10 +36,18 @@ public class VersionFilter implements GlobalFilter, Ordered {
                         .request(mutatedRequest)
                         .build();
 
+                // 创建新的 Baggage
+                Baggage.current()
+                        .toBuilder()
+                        .put("one-key", "one-value")
+                        .put(TENANT_HEADER, tenant)
+                        .put("two-key", "two-value")
+                        .build().makeCurrent();
+
+                // 使用 contextWrite 确保 Baggage 正确传播
                 return chain.filter(mutatedExchange);
             } catch (Exception e) {
-                // 如果token解析失败，继续传递原始请求
-                return chain.filter(exchange);
+                throw new RuntimeException(e);
             }
         }
 
