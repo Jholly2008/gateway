@@ -2,6 +2,7 @@ package com.example.demo.gateway.filter;
 
 import com.example.demo.gateway.utils.JwtUtils;
 import io.opentelemetry.api.baggage.Baggage;
+import io.opentelemetry.context.Scope;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -36,16 +37,21 @@ public class VersionFilter implements GlobalFilter, Ordered {
                         .request(mutatedRequest)
                         .build();
 
-                // 创建新的 Baggage
-                Baggage.current()
-                        .toBuilder()
-                        .put("one-key", "one-value")
-                        .put(TENANT_HEADER, tenant)
-                        .put("two-key", "two-value")
-                        .build().makeCurrent();
+                return Mono.deferContextual(ctx -> {
+                    // 创建 baggage 并获取其 scope
+                    Baggage baggage = Baggage.current()
+                            .toBuilder()
+                            .put("one-key", "one-value")
+                            .put(TENANT_HEADER, tenant)
+                            .put("two-key", "two-value")
+                            .build();
+                    Scope scope = baggage.makeCurrent();
 
-                // 使用 contextWrite 确保 Baggage 正确传播
-                return chain.filter(mutatedExchange);
+                    // 确保在处理完成后关闭 scope
+                    return chain.filter(mutatedExchange)
+                            .contextWrite(context -> context.put(Baggage.class, baggage))
+                            .doFinally(signalType -> clear(scope));
+                });
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -53,6 +59,10 @@ public class VersionFilter implements GlobalFilter, Ordered {
 
         // 如果没有 authorization header，继续传递原始请求
         return chain.filter(exchange);
+    }
+
+    private void clear(Scope scope) {
+        scope.close();
     }
 
     @Override
